@@ -1,0 +1,25 @@
+# -------------------------------------
+# Dependencies & Build Artifacts
+# -------------------------------------
+/node_modules
+/dist
+/build
+*.tsbuildinfo
+
+# -------------------------------------
+# Environment Variables & Secrets
+# -------------------------------------
+# Keep environment variables out of version control
+.env
+*.env
+# If you are using .env.local, .env.development.local etc.
+*.local
+
+# -------------------------------------
+# Database & Prisma Files
+# -------------------------------------
+# Local SQLite database file (change 'dev.db' if you use a different name)
+/prisma/*.db
+/prisma/migrations
+# Logs and temporary files
+*.log

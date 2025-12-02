@@ -1,0 +1,168 @@
+import { GoalStatus, Meal } from "@prisma/client";
+import prisma from "../utils/prisma.js";
+
+// interfaces
+interface DailyStatusData {
+  caloriesConsumed: number;
+  caloriesGoal: number;
+  caloriesRemaining: number;
+
+  proteinConsumed: number;
+  proteinGoal: number;
+  proteinRemaining: number;
+
+  carbConsumed: number;
+  carbGoal: number;
+  carbRemaining: number;
+
+  fatConsumed: number;
+  fatGoal: number;
+  fatRemaining: number;
+}
+
+interface MealInput {
+  foodItemId: number;
+  quantity: number;
+}
+
+// main functions
+export async function getDailyStatus(userId: number): Promise<DailyStatusData> {
+  try {
+    return await calculateUserDailyStatus(userId);
+  } catch (error) {
+    console.error("Error retrieving daily status:", error);
+    throw error;
+  }
+}
+
+export async function createMealsWithTracking(
+  userId: number,
+  mealsInput: MealInput[]
+): Promise<{ meals: Meal[]; dailyStatus: DailyStatusData }> {
+  try {
+    const newMealsDataPromises = mealsInput.map(async (mealsInput) => {
+      const foodItem = await getFoodItemDetails(mealsInput.foodItemId);
+      const ratio = mealsInput.quantity / 100;
+      const calculated = {
+        calories: (foodItem.caloriesPerServing || 0) * ratio,
+        protein: (foodItem.proteinPerServing || 0) * ratio,
+        carb: (foodItem.carbPerServing || 0) * ratio,
+        fat: (foodItem.fatPerServing || 0) * ratio,
+      };
+
+      const roundedCalculated = {
+        calories: Number(calculated.calories.toFixed(2)),
+        protein: Number(calculated.protein.toFixed(2)),
+        carb: Number(calculated.carb.toFixed(2)),
+        fat: Number(calculated.fat.toFixed(2)),
+      };
+
+      return {
+        userId: userId,
+        foodItemId: mealsInput.foodItemId,
+        quantity: mealsInput.quantity,
+        caloriesConsumed: roundedCalculated.calories,
+        proteinConsumed: roundedCalculated.protein,
+        carbConsumed: roundedCalculated.carb,
+        fatConsumed: roundedCalculated.fat,
+      };
+    });
+    const newMealsData = await Promise.all(newMealsDataPromises);
+    const createdMealPromises = newMealsData.map((data) =>
+      prisma.meal.create({ data })
+    );
+    const newMeals = await Promise.all(createdMealPromises);
+
+    const dailyStatus = await calculateUserDailyStatus(userId);
+
+    return { meals: newMeals, dailyStatus: dailyStatus };
+  } catch (error) {
+    console.error("Error in createMealsWithTracking:", error);
+    throw error;
+  }
+}
+
+// helping functions:
+
+async function getUserData(userId: number) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { lastManualReset: true, id: true },
+  });
+  if (!user) {
+    throw new Error("User not found.");
+  }
+  return user;
+}
+
+async function getFoodItemDetails(foodItemId: number) {
+  const item = await prisma.foodItem.findUnique({
+    where: { id: foodItemId },
+  });
+  if (!item) {
+    throw new Error("Food item details not found for this ID.");
+  }
+  return item;
+}
+
+async function calculateUserDailyStatus(
+  userId: number
+): Promise<DailyStatusData> {
+  const user = await getUserData(userId);
+
+  const aggregationResult = await prisma.meal.aggregate({
+    _sum: {
+      caloriesConsumed: true,
+      proteinConsumed: true,
+      carbConsumed: true,
+      fatConsumed: true,
+    },
+    where: { userId: userId, createdAt: { gte: user.lastManualReset } },
+  });
+  const activeGoal = await prisma.goalPlan.findFirst({
+    where: { userId: userId, status: GoalStatus.ACTIVE },
+    select: {
+      calorieGoal: true,
+      proteinGoal: true,
+      carbGoal: true,
+      fatGoal: true,
+    },
+  });
+  const goalData = {
+    calories: Number(activeGoal?.calorieGoal) || 0,
+    protein: Number(activeGoal?.proteinGoal) || 0,
+    carb: Number(activeGoal?.carbGoal) || 0,
+    fat: Number(activeGoal?.fatGoal) || 0,
+  };
+
+  const totalConsumption = {
+    calories: Number(aggregationResult._sum.caloriesConsumed) || 0,
+    protein: Number(aggregationResult._sum.proteinConsumed) || 0,
+    carb: Number(aggregationResult._sum.carbConsumed) || 0,
+    fat: Number(aggregationResult._sum.fatConsumed) || 0,
+  };
+
+  const dailyStatus: DailyStatusData = {
+    caloriesConsumed: Number(totalConsumption.calories.toFixed(2)),
+    caloriesGoal: goalData.calories,
+    caloriesRemaining: Number(
+      (goalData.calories - totalConsumption.calories).toFixed(2)
+    ),
+
+    proteinConsumed: Number(totalConsumption.protein.toFixed(2)),
+    proteinGoal: goalData.protein,
+    proteinRemaining: Number(
+      (goalData.protein - totalConsumption.protein).toFixed(2)
+    ),
+
+    carbConsumed: Number(totalConsumption.carb.toFixed(2)),
+    carbGoal: goalData.carb,
+    carbRemaining: Number((goalData.carb - totalConsumption.carb).toFixed(2)),
+
+    fatConsumed: Number(totalConsumption.fat.toFixed(2)),
+    fatGoal: goalData.fat,
+    fatRemaining: Number((goalData.fat - totalConsumption.fat).toFixed(2)),
+  };
+
+  return dailyStatus;
+}

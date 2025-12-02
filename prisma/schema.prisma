@@ -1,0 +1,81 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  username     String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  lastManualReset  DateTime @default(now())
+
+  goalPlans GoalPlan[]
+
+  meals Meal[]
+}
+
+model GoalPlan {
+  id Int @id @default(autoincrement())
+
+  goalName String
+  userId   Int
+  user     User   @relation(fields: [userId], references: [id])
+
+  calorieGoal Decimal
+  proteinGoal Decimal
+  carbGoal    Decimal
+  fatGoal     Decimal
+
+  startDate DateTime   @default(now())
+  endDate   DateTime?
+  status    GoalStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+
+
+  @@unique([goalName, userId])
+}
+
+model Meal {
+  id Int @id @default(autoincrement())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  foodItemId Int
+  foodItem   FoodItem @relation(fields: [foodItemId], references: [id])
+
+  quantity   Decimal
+  createdAt DateTime @default(now())
+
+  caloriesConsumed  Decimal 
+  proteinConsumed   Decimal 
+  carbConsumed      Decimal
+  fatConsumed       Decimal
+
+  @@index([userId])
+}
+
+model FoodItem {
+  id              Int    @id @default(autoincrement())
+  foodName        String @unique
+
+  caloriesPerServing Decimal
+  proteinPerServing  Decimal
+  carbPerServing     Decimal
+  fatPerServing      Decimal
+
+  meals Meal[]
+}
