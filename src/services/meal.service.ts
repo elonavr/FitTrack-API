@@ -1,5 +1,6 @@
 import { GoalStatus, Meal } from "@prisma/client";
 import prisma from "../utils/prisma.js";
+import { Decimal } from "decimal.js";
 
 // interfaces
 interface DailyStatusData {
@@ -42,25 +43,36 @@ export async function createMealsWithTracking(
   try {
     const newMealsDataPromises = mealsInput.map(async (mealsInput) => {
       const foodItem = await getFoodItemDetails(mealsInput.foodItemId);
-      const ratio = mealsInput.quantity / 100;
+      /////////////////////
+
+      const quantityDecimal = new Decimal(mealsInput.quantity);
+      const hundred = new Decimal(100);
+      const ratio = quantityDecimal.div(hundred);
+
+      const caloriesPerServing = new Decimal(foodItem.caloriesPerServing || 0);
+      const proteinPerServing = new Decimal(foodItem.proteinPerServing || 0);
+      const carbPerServing = new Decimal(foodItem.carbPerServing || 0);
+      const fatPerServing = new Decimal(foodItem.fatPerServing || 0);
+
       const calculated = {
-        calories: (foodItem.caloriesPerServing || 0) * ratio,
-        protein: (foodItem.proteinPerServing || 0) * ratio,
-        carb: (foodItem.carbPerServing || 0) * ratio,
-        fat: (foodItem.fatPerServing || 0) * ratio,
+        calories: caloriesPerServing.mul(ratio),
+        protein: proteinPerServing.mul(ratio),
+        carb: carbPerServing.mul(ratio),
+        fat: fatPerServing.mul(ratio),
       };
 
       const roundedCalculated = {
-        calories: Number(calculated.calories.toFixed(2)),
-        protein: Number(calculated.protein.toFixed(2)),
-        carb: Number(calculated.carb.toFixed(2)),
-        fat: Number(calculated.fat.toFixed(2)),
+        calories: calculated.calories.toFixed(2),
+        protein: calculated.protein.toFixed(2),
+        carb: calculated.carb.toFixed(2),
+        fat: calculated.fat.toFixed(2),
       };
 
       return {
         userId: userId,
         foodItemId: mealsInput.foodItemId,
         quantity: mealsInput.quantity,
+
         caloriesConsumed: roundedCalculated.calories,
         proteinConsumed: roundedCalculated.protein,
         carbConsumed: roundedCalculated.carb,

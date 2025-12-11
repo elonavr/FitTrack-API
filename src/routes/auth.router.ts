@@ -9,6 +9,6 @@ router.post("/signUp", signUpHandler);
 
 router.post("/login", loginHandler);
 
-router.patch("/resetDay", authenticateToken, resetDayHandler);
+router.patch("/resetDay", authenticateToken, resetDayHandler); // change userId
 
 export default router;

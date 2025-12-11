@@ -3,6 +3,10 @@ generator client {
   engineType = "binary"
 }
 
+generator erd {
+  provider = "prisma-erd-generator"
+  title = "Nutrition Tracker Schema"
+}
 datasource db {
   provider = "postgresql"
 }
