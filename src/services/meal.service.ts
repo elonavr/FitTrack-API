@@ -1,6 +1,10 @@
 import { GoalStatus, Meal } from "@prisma/client";
 import prisma from "../utils/prisma.js";
 import { Decimal } from "decimal.js";
+import MemoryCache from "../utils/memory.cache.service.js";
+
+const CACHE_TTL_SECONDS = 600;
+const DAILY_STATUS_KEY_PREFIX = "dailyStatus:";
 
 // interfaces
 interface DailyStatusData {
@@ -29,7 +33,19 @@ interface MealInput {
 // main functions
 export async function getDailyStatus(userId: number): Promise<DailyStatusData> {
   try {
-    return await calculateUserDailyStatus(userId);
+    const cacheKey = DAILY_STATUS_KEY_PREFIX + userId;
+
+    const cachedDailyStatusData = MemoryCache.get<DailyStatusData>(cacheKey);
+
+    if (cachedDailyStatusData) {
+      console.log(`[LOCAL CACHE]: HIT for Daily Status ID ${userId}.`);
+      return cachedDailyStatusData;
+    }
+    const dailyStatus = await calculateUserDailyStatus(userId);
+
+    MemoryCache.set<DailyStatusData>(cacheKey, dailyStatus, CACHE_TTL_SECONDS);
+
+    return dailyStatus;
   } catch (error) {
     console.error("Error retrieving daily status:", error);
     throw error;
@@ -86,6 +102,11 @@ export async function createMealsWithTracking(
     const newMeals = await Promise.all(createdMealPromises);
 
     const dailyStatus = await calculateUserDailyStatus(userId);
+
+    // cache:
+    const cacheKey = DAILY_STATUS_KEY_PREFIX + userId;
+    MemoryCache.del(cacheKey);
+    MemoryCache.set<DailyStatusData>(cacheKey, dailyStatus, CACHE_TTL_SECONDS);
 
     return { meals: newMeals, dailyStatus: dailyStatus };
   } catch (error) {

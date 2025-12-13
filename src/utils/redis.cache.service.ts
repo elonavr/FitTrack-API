@@ -11,7 +11,7 @@ class RedisCacheService {
         return undefined;
       }
       return JSON.parse(data) as T;
-    } catch (error) {
+    } catch (error) { 
       console.error(
         `Failed to get or parse cached data for key: ${key}`,
         error
