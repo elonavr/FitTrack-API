@@ -13,7 +13,6 @@ datasource db {
 
 enum GoalStatus {
   ACTIVE
-  COMPLETED
   PAUSED
 }
 

@@ -27,7 +27,7 @@ export async function loginHandler(req: LoginRequest, res: Response) {
       id: user.id,
       email: user.email,
     });
-
+    console.log("[LOGIN] :Succesfully connected ");
     return res.status(200).json({
       message: "Succesfully connected",
       user: { id: user.id, email: user.email, username: user.username },

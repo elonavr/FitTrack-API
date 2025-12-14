@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { GoalPlan, GoalStatus, Prisma } from "@prisma/client";
 import prisma from "../utils/prisma";
 
 export async function cteateGoalPlan(
@@ -18,6 +18,7 @@ export async function cteateGoalPlan(
         proteinGoal: proteinGoal,
         carbGoal: carbGoal,
         fatGoal: fatGoal,
+        status: GoalStatus.ACTIVE,
       },
     });
     return newGoal;
@@ -32,4 +33,83 @@ export async function cteateGoalPlan(
       "Failed to create goal plan due to an internal server issue."
     );
   }
+}
+export async function getGoals(userId: number): Promise<GoalPlan[]> {
+  try {
+    const goals = await prisma.goalPlan.findMany({
+      where: {
+        userId: userId,
+      },
+    });
+    return goals;
+  } catch (error) {
+    console.error("Error while trying to retrieve all goal plans.");
+    throw error;
+  }
+}
+
+export async function getGoalPlan(
+  userId: number,
+  goalPlanId: number
+): Promise<GoalPlan | null> {
+  try {
+    const goalPlan = await prisma.goalPlan.findUnique({
+      where: {
+        id: goalPlanId,
+        userId: userId,
+      },
+    });
+    return goalPlan;
+  } catch (error) {
+    console.error("Error while trying to retrieve  goal plan.");
+    throw error;
+  }
+}
+export async function pauseGoal(goalId: number, userId: number) {
+  try {
+    const pausedGoal = await prisma.goalPlan.update({
+      where: {
+        id: goalId,
+        userId: userId,
+      },
+      data: {
+        status: GoalStatus.PAUSED,
+      },
+    });
+
+    return pausedGoal;
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      throw new Error(
+        "This goal plan does not exist or does not belong to the user."
+      );
+    }
+    console.error("Error pausing GoalPlan:", error);
+    throw new Error("Failed to pause goal plan due to a server issue.");
+  }
+}
+
+export async function activateGoal(
+  goalPlanId: number,
+  userId: number
+): Promise<GoalPlan> {
+  await prisma.goalPlan.updateMany({
+    where: {
+      userId: userId,
+      status: GoalStatus.ACTIVE,
+      id: { not: goalPlanId },
+    },
+    data: {
+      status: GoalStatus.PAUSED,
+    },
+  });
+
+  const activatedGoal = await prisma.goalPlan.update({
+    where: { id: goalPlanId, userId: userId },
+    data: { status: GoalStatus.ACTIVE },
+  });
+  return activatedGoal;
 }

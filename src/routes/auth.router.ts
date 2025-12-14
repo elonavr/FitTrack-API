@@ -5,7 +5,7 @@ import { loginHandler } from "../controllers/login.controller.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { resetDayHandler } from "../controllers/resetDay.controller.js";
 
-router.post("/signUp", signUpHandler);
+router.post("/signup", signUpHandler);
 
 router.post("/login", loginHandler);
 
