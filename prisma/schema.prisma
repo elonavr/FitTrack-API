@@ -26,6 +26,7 @@ model User {
   lastManualReset  DateTime @default(now())
 
   goalPlans GoalPlan[]
+  foodItems FoodItem[]
 
   meals Meal[]
 }
@@ -73,12 +74,19 @@ model Meal {
 
 model FoodItem {
   id              Int    @id @default(autoincrement())
-  foodName        String @unique
+  foodName        String 
 
   caloriesPerServing Decimal
   proteinPerServing  Decimal
   carbPerServing     Decimal
   fatPerServing      Decimal
 
+  userId Int
+  user User @relation(fields: [userId], references: [id])
+
+
   meals Meal[]
+
+
+  @@unique([foodName,userId])
 }

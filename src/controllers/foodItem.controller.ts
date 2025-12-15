@@ -1,65 +1,80 @@
-import e, { Request, Response } from "express";
+import { Request, Response } from "express";
 import {
   createFoodItem,
   getFoodItemDetails,
   getAllFoodItemDetails,
 } from "../services/foodItem.service";
+import { AuthRequest } from "../middleware/auth.middleware";
 
 interface FoodItemRequestBody {
   foodName?: string;
-  caloriesPerServing?: number;
-  proteinPerServing?: number;
-  carbPerServing?: number;
-  fatPerServing?: number;
+  caloriesPerServing?: string;
+  proteinPerServing?: string;
+  carbPerServing?: string;
+  fatPerServing?: string;
 }
 
-interface FoodItemRequest extends Request {
+interface FoodItemCreateRequest extends AuthRequest {
   body: FoodItemRequestBody;
 }
 
+function isMacroValid(value: any): boolean {
+  if (typeof value !== "number" || isNaN(value)) return false;
+  if (value < 0) return false;
+  return true;
+}
+
 export async function createFoodItemHandler(
-  req: FoodItemRequest,
+  req: FoodItemCreateRequest,
   res: Response
 ) {
-  const foodName = req.body.foodName ? req.body.foodName.trim() : undefined;
+  const userId = req.userId;
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ message: "Anauthorized request, user id must be valid." });
+  }
+
+  const foodName = req.body.foodName
+    ? String(req.body.foodName).trim()
+    : undefined;
 
   const {
-    caloriesPerServing,
-    proteinPerServing,
-    carbPerServing,
-    fatPerServing,
+    caloriesPerServing: rawCalories,
+    proteinPerServing: rawProtein,
+    carbPerServing: rawCarb,
+    fatPerServing: rawFat,
   } = req.body;
-  if (!foodName) {
+
+  const caloriesPerServing = parseFloat(rawCalories ?? "");
+  const proteinPerServing = parseFloat(rawProtein ?? "");
+  const carbPerServing = parseFloat(rawCarb ?? "");
+  const fatPerServing = parseFloat(rawFat ?? "");
+
+  if (!foodName || foodName.length === 0) {
     return res.status(400).json({ message: "Food Name must be full" });
   }
-  if (caloriesPerServing == null) {
-    return res
-      .status(400)
-      .json({ message: "caloriesPerServing field must be full" });
-  }
-  if (proteinPerServing == null) {
-    return res
-      .status(400)
-      .json({ message: "proteinPerServing field must be full" });
-  }
-  if (carbPerServing == null) {
-    return res
-      .status(400)
-      .json({ message: "carbPerServing field must be full" });
-  }
-  if (fatPerServing == null) {
-    return res
-      .status(400)
-      .json({ message: "fatPerServing field must be full" });
+
+  if (
+    !isMacroValid(caloriesPerServing) ||
+    !isMacroValid(proteinPerServing) ||
+    !isMacroValid(carbPerServing) ||
+    !isMacroValid(fatPerServing)
+  ) {
+    return res.status(400).json({
+      message:
+        "All nutritional values must be provided as valid non-negative numbers.",
+    });
   }
 
   try {
     const newFoodItem = await createFoodItem(
-      foodName as string,
-      caloriesPerServing as number,
-      proteinPerServing as number,
-      carbPerServing as number,
-      fatPerServing as number
+      userId,
+      foodName,
+      String(caloriesPerServing),
+      String(proteinPerServing),
+      String(carbPerServing),
+      String(fatPerServing)
     );
     return res.status(201).json({
       message: "Food item created successfully.",
@@ -68,7 +83,7 @@ export async function createFoodItemHandler(
   } catch (error) {
     if (
       error instanceof Error &&
-      error.message.includes("Food item must be unique.")
+      error.message.includes("Food item must be unique for this user.")
     ) {
       return res.status(409).json({ message: error.message });
     }
@@ -79,7 +94,14 @@ export async function createFoodItemHandler(
   }
 }
 
-export async function getFoodItemHandler(req: Request, res: Response) {
+export async function getFoodItemHandler(req: AuthRequest, res: Response) {
+  const userId = req.userId;
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ message: "Anauthorized request, user id must be valid." });
+  }
+
   const idString = req.params.foodItemId;
   if (!idString) {
     return res.status(400).json({ BadRequest: "Missing Food Item ID." });
@@ -91,7 +113,7 @@ export async function getFoodItemHandler(req: Request, res: Response) {
       .json({ BadRequest: "Food Item id must be a positive number" });
   }
   try {
-    const foodItem = await getFoodItemDetails(foodItemId);
+    const foodItem = await getFoodItemDetails(foodItemId, userId);
 
     return res.status(200).json(foodItem);
   } catch (error) {
@@ -108,11 +130,17 @@ export async function getFoodItemHandler(req: Request, res: Response) {
   }
 }
 export async function getAllFoodItemDetailsHandler(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
-    const allFoodItems = await getAllFoodItemDetails();
+    const userId = req.userId;
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ message: "Anauthorized request, user id must be valid." });
+    }
+    const allFoodItems = await getAllFoodItemDetails(userId);
     return res.status(200).json({
       message: `Succesfully retrived all food items.`,
       foodItems: allFoodItems,

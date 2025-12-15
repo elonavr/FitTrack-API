@@ -1,14 +1,18 @@
 import {
-  cteateGoalPlan,
+  createGoalPlan,
   getGoals,
   getGoalPlan,
   pauseGoal,
   activateGoal,
+  deleteGoal,
 } from "../services/goal.service";
 import { Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 
-export async function createGoalPlanHandler(req: Request, res: Response) {
-  const userId = (req as any).userId;
+import { AuthRequest } from "../middleware/auth.middleware";
+
+export async function createGoalPlanHandler(req: AuthRequest, res: Response) {
+  const userId = req.userId;
 
   if (!userId) {
     return res.status(401).json({ message: "Authentication required." });
@@ -35,7 +39,7 @@ export async function createGoalPlanHandler(req: Request, res: Response) {
   }
 
   try {
-    const newGoal = await cteateGoalPlan(
+    const newGoal = await createGoalPlan(
       userId,
       goalName,
       parsedCalorie,
@@ -63,8 +67,8 @@ export async function createGoalPlanHandler(req: Request, res: Response) {
   }
 }
 
-export async function getGoalsHandler(req: Request, res: Response) {
-  const userId = (req as any).userId;
+export async function getGoalsHandler(req: AuthRequest, res: Response) {
+  const userId = req.userId;
   console.log("Controller Check: Retrieved userId:", userId);
   if (!userId) {
     return res.status(401).json({ message: "Authentication required." });
@@ -88,8 +92,8 @@ export async function getGoalsHandler(req: Request, res: Response) {
       .json({ Error: "Enternal server error has occured." });
   }
 }
-export async function getGoalPlanHandler(req: Request, res: Response) {
-  const userId = (req as any).userId;
+export async function getGoalPlanHandler(req: AuthRequest, res: Response) {
+  const userId = req.userId;
   if (!userId) {
     return res.status(401).json({ message: "Authentication required." });
   }
@@ -123,8 +127,8 @@ export async function getGoalPlanHandler(req: Request, res: Response) {
   }
 }
 
-export async function pauseGoalHandler(req: Request, res: Response) {
-  const userId = (req as any).userId;
+export async function pauseGoalHandler(req: AuthRequest, res: Response) {
+  const userId = req.userId;
   if (!userId) {
     return res
       .status(401)
@@ -160,8 +164,8 @@ export async function pauseGoalHandler(req: Request, res: Response) {
   }
 }
 
-export async function activateGoalHandler(req: Request, res: Response) {
-  const userId = (req as any).userId;
+export async function activateGoalHandler(req: AuthRequest, res: Response) {
+  const userId = req.userId;
 
   if (!userId) {
     return res
@@ -199,5 +203,43 @@ export async function activateGoalHandler(req: Request, res: Response) {
     return res
       .status(500)
       .json({ message: "Failed to activate goal plan due to a server error." });
+  }
+}
+export async function deleteGoalHandler(req: AuthRequest, res: Response) {
+  const userId = req.userId;
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ message: "Authentication failed: User ID not found." });
+  }
+
+  const idParam = req.params.id;
+
+  if (!idParam) {
+    return res
+      .status(400)
+      .json({ message: "Goal ID is required in the path." });
+  }
+
+  const goalId = parseInt(idParam, 10);
+  if (isNaN(goalId)) {
+    return res.status(400).json({ message: "Invalid Goal ID format." });
+  }
+
+  try {
+    const goalName = await deleteGoal(goalId, userId);
+    return res.status(200).json({
+      message: `Goal '${goalName}' successfully deleted.`,
+      deleted: goalName,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("not found")) {
+      return res.status(404).json({ message: errorMessage });
+    }
+    console.error("Error in deleteGoal service:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to delete goal plan due to a server error." });
   }
 }

@@ -9,15 +9,17 @@ const ALL_FOOD_ITEMS_KEY = "foodItems:all";
 const FOOD_ITEM_KEY = `foodItem:`;
 
 export async function createFoodItem(
+  userId: number,
   foodName: string,
-  caloriesPerServing: number,
-  proteinPerServing: number,
-  carbPerServing: number,
-  fatPerServing: number
+  caloriesPerServing: string,
+  proteinPerServing: string,
+  carbPerServing: string,
+  fatPerServing: string
 ): Promise<FoodItem> {
   try {
     const newFoodItem = await prisma.foodItem.create({
       data: {
+        userId: userId,
         foodName: foodName,
         caloriesPerServing: caloriesPerServing,
         proteinPerServing: proteinPerServing,
@@ -25,18 +27,17 @@ export async function createFoodItem(
         fatPerServing: fatPerServing,
       },
     });
-
     const singleCachekey = FOOD_ITEM_KEY + `${newFoodItem.id}`;
-
-    await RedisClient.del(ALL_FOOD_ITEMS_KEY);
-
     await RedisClient.set(singleCachekey, newFoodItem, DEFAULT_TTL_SECONDS);
+
+    const ALL_USER_FOOD_ITEMS_KEY = ALL_FOOD_ITEMS_KEY + `:${userId}`;
+    await RedisClient.del(ALL_USER_FOOD_ITEMS_KEY);
 
     return newFoodItem;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.name === "P2002") {
-        throw new Error("Food item must be unique.");
+      if (error.code === "P2002") {
+        throw new Error("Food item must be unique for this user.");
       }
     }
     console.error("Error creating FoodItem:", error);
@@ -47,28 +48,24 @@ export async function createFoodItem(
 }
 
 export async function getFoodItemDetails(
-  foodItemId: number
+  foodItemId: number,
+  userId: number
 ): Promise<FoodItem> {
   try {
-    const foodItemCahced = await RedisClient.get<FoodItem>(
-      FOOD_ITEM_KEY + `${foodItemId}`
-    );
+    const singleCachekey = FOOD_ITEM_KEY + `${userId}:${foodItemId}`;
+    const foodItemCahced = await RedisClient.get<FoodItem>(singleCachekey);
     if (foodItemCahced) {
       console.log(`[CACHE]: HIT for Food Item ID ${foodItemId}.`);
       return foodItemCahced;
     }
 
     const foodItem = await prisma.foodItem.findUnique({
-      where: { id: foodItemId },
+      where: { id: foodItemId, userId: userId },
     });
     if (!foodItem) {
       throw new Error("Food item details not found for this ID.");
     }
-    await RedisClient.set(
-      FOOD_ITEM_KEY + `${foodItem.id}`,
-      foodItem,
-      DEFAULT_TTL_SECONDS
-    );
+    await RedisClient.set(singleCachekey, foodItem, DEFAULT_TTL_SECONDS);
     return foodItem;
   } catch (error) {
     if (
@@ -84,18 +81,23 @@ export async function getFoodItemDetails(
   }
 }
 
-export async function getAllFoodItemDetails(): Promise<FoodItem[]> {
+export async function getAllFoodItemDetails(
+  userId: number
+): Promise<FoodItem[]> {
   try {
+    const ALL_USER_FOOD_ITEMS_KEY = ALL_FOOD_ITEMS_KEY + `:${userId}`;
     const allFoodItemsCached = await RedisClient.get<FoodItem[]>(
-      ALL_FOOD_ITEMS_KEY
+      ALL_USER_FOOD_ITEMS_KEY
     );
     if (allFoodItemsCached) {
       console.log(`[CACHE] HIT for all food Items`);
       return allFoodItemsCached;
     }
-    const allFoodItems = await prisma.foodItem.findMany();
+    const allFoodItems = await prisma.foodItem.findMany({
+      where: { userId: userId },
+    });
     await RedisClient.set<FoodItem[]>(
-      ALL_FOOD_ITEMS_KEY,
+      ALL_USER_FOOD_ITEMS_KEY,
       allFoodItems,
       DEFAULT_TTL_SECONDS
     );

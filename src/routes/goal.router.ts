@@ -6,6 +6,7 @@ import {
   getGoalPlanHandler,
   pauseGoalHandler,
   activateGoalHandler,
+  deleteGoalHandler,
 } from "../controllers/goal.controller";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 
@@ -18,5 +19,7 @@ router.get("/:id", authenticateToken, getGoalPlanHandler);
 router.put("/:id/pause", authenticateToken, pauseGoalHandler);
 
 router.put("/:id/activate", authenticateToken, activateGoalHandler);
+
+router.delete("/:id", authenticateToken, deleteGoalHandler);
 
 export default router;

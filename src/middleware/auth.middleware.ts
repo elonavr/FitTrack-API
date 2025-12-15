@@ -10,7 +10,7 @@ if (!JWT_SECRET) {
     "FATAL ERROR: JWT_SECRET is not defined in environment variables."
   );
 }
-interface AuthRequest extends Request {
+export interface AuthRequest extends Request {
   userId?: number;
 }
 

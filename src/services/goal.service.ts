@@ -1,7 +1,6 @@
 import { GoalPlan, GoalStatus, Prisma } from "@prisma/client";
 import prisma from "../utils/prisma";
-
-export async function cteateGoalPlan(
+export async function createGoalPlan(
   userId: number,
   goalName: string,
   calorieGoal: number,
@@ -10,21 +9,31 @@ export async function cteateGoalPlan(
   fatGoal: number
 ) {
   try {
-    const newGoal = await prisma.goalPlan.create({
-      data: {
-        userId: userId,
-        goalName: goalName,
-        calorieGoal: calorieGoal,
-        proteinGoal: proteinGoal,
-        carbGoal: carbGoal,
-        fatGoal: fatGoal,
-        status: GoalStatus.ACTIVE,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.goalPlan.updateMany({
+        where: { userId: userId, status: GoalStatus.ACTIVE },
+        data: { status: GoalStatus.PAUSED },
+      });
+
+      const newGoal = await tx.goalPlan.create({
+        data: {
+          userId: userId,
+          goalName: goalName,
+          calorieGoal: calorieGoal,
+          proteinGoal: proteinGoal,
+          carbGoal: carbGoal,
+          fatGoal: fatGoal,
+          status: GoalStatus.ACTIVE,
+        },
+      });
+
+      return newGoal;
     });
-    return newGoal;
+
+    return result;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.name === "P2002") {
+      if (error.code === "P2002") {
         throw new Error("Goal plan name must be unique for this user.");
       }
     }
@@ -34,6 +43,7 @@ export async function cteateGoalPlan(
     );
   }
 }
+
 export async function getGoals(userId: number): Promise<GoalPlan[]> {
   try {
     const goals = await prisma.goalPlan.findMany({
@@ -112,4 +122,27 @@ export async function activateGoal(
     data: { status: GoalStatus.ACTIVE },
   });
   return activatedGoal;
+}
+
+export async function deleteGoal(
+  goalId: number,
+  userId: number
+): Promise<string> {
+  try {
+    const deletedGoalObject = await prisma.goalPlan.delete({
+      select: { goalName: true },
+      where: { userId: userId, id: goalId },
+    });
+    return deletedGoalObject.goalName;
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      console.error("Plan goal not found for deletion.");
+      throw new Error("Goal plan not found.");
+    }
+  }
+  console.error("Error in deleteGoal service:");
+  throw new Error("Internal server error during goal deletion.");
 }
