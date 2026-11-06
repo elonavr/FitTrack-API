@@ -23,7 +23,7 @@ FitTrack is a modern, high-performance RESTful API designed to provide precise t
 ### 💡 Core Features & Architectural Highlights
 
 1.  **Macro & Calorie Tracking:** Accurate logging and real-time calculation of consumed vs. goal macros (Protein, Carbs, Fat).
-2.  **Food Item Management:** Centralized database for nutritional data, accessible by all users.
+2.  **Food Item Management:** Each user keeps a personal food item library; food names are unique per user.
 3.  **Advanced Caching Strategy:**
     - **Cache-Aside:** Implemented in the Service layer to check Redis before hitting PostgreSQL for read-heavy data (e.g., `FoodItem` details).
     - **Invalidation & Write-Through:** Ensures data consistency by immediately updating or deleting cached entries upon write operations (e.g., creating a new food item).
@@ -108,8 +108,10 @@ All values are estimates (not medical advice). Constants live in `src/services/e
 
 ### 🎯 API Endpoints Example
 
-| Endpoint                    | Method | Description                                                                      | Controller Handler             |
-| :-------------------------- | :----- | :------------------------------------------------------------------------------- | :----------------------------- |
-| `/api/fooditem`             | `GET`  | Retrieves a list of all food items (utilizes list caching).                      | `getAllFoodItemDetailsHandler` |
-| `/api/fooditem/:foodItemId` | `GET`  | Retrieves detailed information for a specific food item (utilizes item caching). | `getFoodItemHandler`           |
-| `/api/fooditem`             | `POST` | Creates a new food item (triggers cache Invalidation/Write-Through).             | `createFoodItemHandler`        |
+All food item endpoints require a `Bearer` JWT and only act on the authenticated user's items.
+
+| Endpoint                    | Method | Description                                                                                                                                                 | Controller Handler             |
+| :-------------------------- | :----- | :---------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------- |
+| `/api/fooditem`             | `GET`  | Lists the user's food items as `{ message, foodItems }` (per-user list caching).                                                                            | `getAllFoodItemDetailsHandler` |
+| `/api/fooditem/:foodItemId` | `GET`  | Returns one of the user's food items; 404 if it doesn't exist or belongs to another user (per-user item caching).                                           | `getFoodItemHandler`           |
+| `/api/fooditem`             | `POST` | Creates a food item from `foodName`, `caloriesPerServing`, `proteinPerServing`, `carbPerServing`, `fatPerServing`; 400 if invalid, 409 on a duplicate name. | `createFoodItemHandler`        |
