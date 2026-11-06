@@ -20,6 +20,5 @@
 # -------------------------------------
 # Local SQLite database file (change 'dev.db' if you use a different name)
 /prisma/*.db
-/prisma/migrations
 # Logs and temporary files
 *.log
