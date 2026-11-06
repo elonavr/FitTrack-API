@@ -77,6 +77,35 @@ This project relies on Docker for running its required services (PostgreSQL and 
     # Server will start on http://localhost:5000
     ```
 
+### 🔥 How Calories Are Calculated
+
+All values are estimates (not medical advice). Constants live in `src/services/energy.service.ts`.
+
+**Calories at rest (BMR, Mifflin-St Jeor)**
+
+`10 × weight(kg) + 6.25 × height(cm) − 5 × age`, then **+5** for men or **−161** for women.
+
+**Maintenance (TDEE)** = calories at rest × activity multiplier:
+
+| Training days / week | Multiplier |
+| -------------------- | ---------- |
+| 0                    | 1.2        |
+| 1–2                  | 1.375      |
+| 3–5                  | 1.55       |
+| 6–7                  | 1.725      |
+
+**Plans** (from maintenance):
+
+| Plan        | Calories                              |
+| ----------- | ------------------------------------- |
+| Cut         | × 0.8 (−20%), never below 1200 kcal   |
+| Maintenance | × 1                                   |
+| Bulk        | × 1.1 (+10%)                          |
+
+**Macros:** protein 2 g/kg body weight (30% of calories if weight is unknown), fat 25% of calories, carbs fill the rest (4 kcal/g protein and carbs, 9 kcal/g fat). Custom plans store the grams the user enters, and calories are recomputed as `4·protein + 4·carbs + 9·fat`.
+
+**Example:** male, 30 years, 180 cm, 80 kg, 4 training days → rest 1780 kcal, maintenance 2759 kcal, Cut 2207 kcal, Bulk 3035 kcal.
+
 ### 🎯 API Endpoints Example
 
 | Endpoint                    | Method | Description                                                                      | Controller Handler             |

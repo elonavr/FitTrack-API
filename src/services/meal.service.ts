@@ -115,6 +115,10 @@ export async function createMealsWithTracking(
   }
 }
 
+export function invalidateDailyStatus(userId: number): void {
+  MemoryCache.del(DAILY_STATUS_KEY_PREFIX + userId);
+}
+
 // helping functions:
 
 async function getUserData(userId: number) {

@@ -11,6 +11,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Gender {
+  MALE
+  FEMALE
+}
+
 enum GoalStatus {
   ACTIVE
   PAUSED
@@ -24,6 +29,13 @@ model User {
   createdAt    DateTime @default(now())
 
   lastManualReset  DateTime @default(now())
+
+  gender              Gender?
+  age                 Int?
+  heightCm            Decimal?
+  weightKg            Decimal?
+  trainingDaysPerWeek Int?
+  onboardingCompleted Boolean  @default(false)
 
   goalPlans GoalPlan[]
   foodItems FoodItem[]
