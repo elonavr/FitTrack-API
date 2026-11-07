@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "tsx src/server.ts"
+    "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +25,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@openfoodfacts/openfoodfacts-nodejs": "2.0.0-alpha.36",
     "@prisma/adapter-pg": "^7.1.0",
     "@prisma/client": "^7.1.0",
     "bcryptjs": "^3.0.3",
