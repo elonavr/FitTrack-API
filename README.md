@@ -73,8 +73,16 @@ This project relies on Docker for running its required services (PostgreSQL and 
 5.  **Run the Server:**
 
     ```bash
-    npm run start
-    # Server will start on http://localhost:5000
+    npm run dev   # development: restarts automatically when you save a file
+    npm start     # plain run, no auto-restart
+    # Server will start on http://localhost:5001 (PORT in .env)
+    ```
+
+    If the port is already taken (usually an old server still running), the API exits with
+    `Failed to listen on port 5001 … EADDRINUSE` instead of serving stale code. Stop the old one:
+
+    ```bash
+    kill $(lsof -t -iTCP:5001 -sTCP:LISTEN)
     ```
 
 ### 🔥 How Calories Are Calculated
